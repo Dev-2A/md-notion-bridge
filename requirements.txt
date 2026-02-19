@@ -1,0 +1,5 @@
+notion-client>=2.2.1
+mistune>=3.0.2
+python-dotenv>=1.0.0
+click>=8.1.7
+rich>=13.7.0

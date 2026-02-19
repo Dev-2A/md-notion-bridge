@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "md-notion-bridge"
+version = "0.1.0"
+description = "마크다운 ↔ Notion 양방향 변환기"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+dependencies = [
+    "notion-client>=2.2.1",
+    "mistune>=3.0.2",
+    "python-dotenv>=1.0.0",
+    "click>=8.1.7",
+    "rich>=13.7.0",
+]
+
+[project.scripts]
+md-notion = "md_notion_bridge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["md_notion_bridge*"]
