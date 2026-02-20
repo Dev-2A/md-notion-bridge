@@ -263,3 +263,51 @@ def push_all(directory: str, page_id: str | None, pattern: str) -> None:
 
     console.print(table)
     console.print(f"\n[bold]총 {len(files)}개 중 {success}개 성공[/bold]")
+
+
+@main.command("pull-all")
+@click.argument("page_ids", nargs=-1, required=True)
+@click.option(
+    "--output-dir", "-o",
+    default="notion_export",
+    show_default=True,
+    help="저장할 디렉토리 경로.",
+)
+def pull_all(page_ids: tuple[str, ...], output_dir: str) -> None:
+    """여러 Notion 페이지를 마크다운 파일로 일괄 추출합니다.
+
+    \b
+    예시:
+        md-notion pull-all abc123 def456 ghi789
+        md-notion pull-all abc123 --output-dir ./exported
+    """
+    from .batch import batch_pull
+    from rich.table import Table
+
+    client = _get_client()
+    out = Path(output_dir)
+
+    console.print(f"📥 {len(page_ids)}개 페이지 추출 시작 → [cyan]{out}[/cyan]")
+
+    def on_progress(current, total, result):
+        icon = "✅" if result.success else "❌"
+        msg = result.output_path if result.success else result.error
+        console.print(f"  {icon} [{current}/{total}] {msg}")
+
+    report = batch_pull(list(page_ids), client, out, on_progress=on_progress)
+
+    table = Table(title="📥 배치 추출 결과", show_lines=True)
+    table.add_column("페이지 ID", style="cyan")
+    table.add_column("상태", justify="center")
+    table.add_column("블록 수", justify="right")
+    table.add_column("저장 경로", style="dim")
+
+    for r in report.results:
+        from .batch import PullResult
+        if isinstance(r, PullResult):
+            status = "[green]✅ 성공[/green]" if r.success else "[red]❌ 실패[/red]"
+            detail = r.output_path if r.success else r.error
+            table.add_row(r.page_id[:8] + "...", status, str(r.block_count), detail)
+
+    console.print(table)
+    console.print(f"\n[bold]{report.summary()}[/bold]")

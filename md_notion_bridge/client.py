@@ -4,6 +4,7 @@ from notion_client import Client
 from notion_client.errors import APIResponseError
 
 from .config import config
+from .exceptions import NotionAPIError
 
 
 class NotionClient:
@@ -109,3 +110,28 @@ class NotionClient:
                 f"{raw_id[12:16]}-{raw_id[16:20]}-{raw_id[20:]}"
             )
         return raw_id
+    
+    def safe_get_blocks(self, block_id: str) -> tuple[list[dict], list[str]]:
+        """블록 조회 - 실패한 블록 ID도 함께 반환"""
+        blocks: list[dict] = []
+        errors: list[str] = []
+        cursor = None
+        
+        while True:
+            try:
+                kwargs: dict = {"block_id": block_id, "page_size": 100}
+                if cursor:
+                    kwargs["start_cursor"] = cursor
+                
+                response = self._client.blocks.children.list(**kwargs)
+                blocks.extend(response.get("results", []))
+                
+                if not response.get("has_more"):
+                    break
+                cursor = response.get("next_cursor")
+            
+            except APIResponseError as e:
+                errors.append(f"블록 조회 실패 [{block_id}]: {e}")
+                break
+        
+        return blocks, errors
