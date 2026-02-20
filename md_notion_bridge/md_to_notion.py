@@ -11,55 +11,36 @@ from .utils.korean import normalize, normalize_markdown_korean, rich_text_with_l
 # ------------------------------------------------------------------ #
 
 def parse_inline(text: str) -> list[dict]:
-    """인라인 마크다운 → Notion rich_text 리스트
-    
-    지원: **굵게**, *기울임*, ~~취소선~~, `인라인 코드`, [링크](url)
-    """
     result: list[dict] = []
-    # 패턴 순서 중요 (긴 패턴 먼저)
     pattern = re.compile(
-        r"(\*\*(.+?)\*\*)"              # **굵게**
-        r"|(\*(.+?)\*)"                 # *기울임*
-        r"|(~~(.+?)~~)"                 # ~~취소선~~
-        r"|(`(.+?)`)"                   # `코드`
-        r"|(\[(.+?)\]\((.+?)\))"        # [텍스트](url)
+        r"(\*\*(.+?)\*\*)"
+        r"|(\*(.+?)\*)"
+        r"|(~~(.+?)~~)"
+        r"|(`(.+?)`)"
+        r"|(\[(.+?)\]\((.+?)\))"
     )
-    
     last = 0
     for m in pattern.finditer(text):
-        # 매칭 이전 일반 텍스트
         if m.start() > last:
-            result.append(_plain(text[last:m.start()]))
-        
-        if m.group(1):      # **굵게**
+            result.extend(rich_text_with_limit(text[last:m.start()]))
+        if m.group(1):
             result.append(_annotated(m.group(2), bold=True))
-        elif m.group(3):    # *기울임*
+        elif m.group(3):
             result.append(_annotated(m.group(4), italic=True))
-        elif m.group(5):    # ~~취소선~~
+        elif m.group(5):
             result.append(_annotated(m.group(6), strikethrough=True))
-        elif m.group(7):    # `코드`
+        elif m.group(7):
             result.append(_annotated(m.group(8), code=True))
-        elif m.group(9):    # [링크](url)
+        elif m.group(9):
             result.append(_link(m.group(10), m.group(11)))
-        
         last = m.end()
-    
-    # 나머지 텍스트
     if last < len(text):
-        result.append(_plain(text[last:]))
-    
+        result.extend(rich_text_with_limit(text[last:]))
     return result if result else [_plain("")]
 
 
 def _plain(text: str) -> dict:
-    # 2000자 초과 시 자동 분할 (첫 번째 청크만 반환, 나머지는 parse_inline에서 처리)
-    chunks = rich_text_with_limit(text)
-    return chunks[0] if chunks else {"type": "text", "text": {"content": ""}}
-
-
-def _plain_all(text: str) -> list[dict]:
-    """2000자 초과 텍스트를 분할한 rich_text 리스트 전체 반환"""
-    return rich_text_with_limit(text)
+    return {"type": "text", "text": {"content": normalize(text)}}
 
 
 def _annotated(text: str, **kwargs) -> dict:
@@ -82,18 +63,13 @@ def _link(text: str, url: str) -> dict:
 # ------------------------------------------------------------------ #
 
 def _heading(level: int, text: str) -> dict:
-    tag = f"heading_{level}"
-    return {
-        "type": tag,
-        tag: {"rich_text": parse_inline(text)},
-    }
+    clamped = min(level, 3)
+    tag = f"heading_{clamped}"
+    return {"type": tag, tag: {"rich_text": parse_inline(text)}}
 
 
 def _paragraph(text: str) -> dict:
-    return {
-        "type": "paragraph",
-        "paragraph": {"rich_text": parse_inline(text)},
-    }
+    return {"type": "paragraph", "paragraph": {"rich_text": parse_inline(text)}}
 
 
 def _bulleted(text: str) -> dict:
@@ -111,10 +87,7 @@ def _numbered(text: str) -> dict:
 
 
 def _quote(text: str) -> dict:
-    return {
-        "type": "quote",
-        "quote": {"rich_text": parse_inline(text)},
-    }
+    return {"type": "quote", "quote": {"rich_text": parse_inline(text)}}
 
 
 def _divider() -> dict:
@@ -126,12 +99,10 @@ def _divider() -> dict:
 # ------------------------------------------------------------------ #
 
 def _is_separator_row(line: str) -> bool:
-    """| --- | --- | 형태의 구분선 여부"""
     return bool(re.match(r"^\|[\s\-:|]+\|$", line.strip()))
 
 
 def _parse_table_row(line: str) -> list[str]:
-    """| a | b | c | → ['a', 'b', 'c']"""
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
 
 
@@ -143,33 +114,32 @@ def convert(markdown: str, korean_optimize: bool = True) -> list[dict]:
     """마크다운 문자열 → Notion 블록 리스트"""
     if korean_optimize:
         markdown = normalize_markdown_korean(markdown)
+
     blocks: list[dict] = []
     lines = markdown.splitlines()
     i = 0
-    
+
     while i < len(lines):
         line = lines[i]
-        
-        # ── 코드블록 (``` 로 시작) ──────────────────────────────────
+
+        # ── 코드블록 ──────────────────────────────────────────────
         if line.startswith("```"):
             lang = line[3:].strip()
-            code_liens: list[str] = []
+            code_lines: list[str] = []
             i += 1
             while i < len(lines) and not lines[i].startswith("```"):
-                code_liens.append(lines[i])
+                code_lines.append(lines[i])
                 i += 1
-            blocks.append(build_code_block("\n".join(code_liens), lang))
+            blocks.append(build_code_block("\n".join(code_lines), lang))
             i += 1
             continue
-        
+
         # ── 표 ────────────────────────────────────────────────────
         if line.startswith("|") and "|" in line[1:]:
             table_lines = []
             while i < len(lines) and lines[i].startswith("|"):
                 table_lines.append(lines[i])
                 i += 1
-            
-            # 구분선 제거하고 rows 추출
             rows = [
                 _parse_table_row(l)
                 for l in table_lines
@@ -179,41 +149,70 @@ def convert(markdown: str, korean_optimize: bool = True) -> list[dict]:
                 has_header = any(_is_separator_row(l) for l in table_lines)
                 blocks.append(build_table_blocks(rows, has_header))
             continue
-        
-        # ── 제목 ──────────────────────────────────────────────────
-        heading_match = re.match(r"^(#{1,3})\s+(.*)", line)
+
+        # ── 제목 (H1~H6) ──────────────────────────────────────────
+        heading_match = re.match(r"^(#{1,6})\s+(.*)", line)
         if heading_match:
             level = len(heading_match.group(1))
             blocks.append(_heading(level, heading_match.group(2)))
             i += 1
             continue
-        
+
         # ── 수평선 ────────────────────────────────────────────────
         if re.match(r"^(-{3,}|\*{3,}|_{3,})$", line.strip()):
             blocks.append(_divider())
             i += 1
             continue
-        
+
         # ── 인용문 ────────────────────────────────────────────────
         if line.startswith("> "):
             blocks.append(_quote(line[2:]))
             i += 1
             continue
-        
-        # ── 순서 없는 목록 ────────────────────────────────────────
-        ul_match = re.match(r"^[-*+]\s+(.*)", line)
+
+        # ── 순서 없는 목록 (중첩 지원) ────────────────────────────
+        ul_match = re.match(r"^( *)[-*+] (.*)", line)
         if ul_match:
-            blocks.append(_bulleted(ul_match.group(1)))
+            spaces = ul_match.group(1)
+            text = ul_match.group(2)
+            # 할일 목록 체크
+            todo_match = re.match(r"^\[(x| )\] (.*)", text, re.IGNORECASE)
+            if todo_match:
+                checked = todo_match.group(1).lower() == "x"
+                todo_block = {
+                    "type": "to_do",
+                    "to_do": {
+                        "rich_text": parse_inline(todo_match.group(2)),
+                        "checked": checked,
+                    },
+                }
+                blocks.append(todo_block)
+            else:
+                block = _bulleted(text)
+                if len(spaces) >= 2 and blocks and blocks[-1]["type"] == "bulleted_list_item":
+                    inner = blocks[-1]["bulleted_list_item"]
+                    inner.setdefault("children", [])
+                    inner["children"].append(block)
+                else:
+                    blocks.append(block)
             i += 1
             continue
-        
-        # ── 순서 있는 목록 ────────────────────────────────────────
-        ol_match = re.match(r"^\d+\.\s+(.*)", line)
+
+        # ── 순서 있는 목록 (중첩 지원) ────────────────────────────
+        ol_match = re.match(r"^( *)\d+\. (.*)", line)
         if ol_match:
-            blocks.append(_numbered(ol_match.group(1)))
+            spaces = ol_match.group(1)
+            text = ol_match.group(2)
+            block = _numbered(text)
+            if len(spaces) >= 2 and blocks and blocks[-1]["type"] == "numbered_list_item":
+                inner = blocks[-1]["numbered_list_item"]
+                inner.setdefault("children", [])
+                inner["children"].append(block)
+            else:
+                blocks.append(block)
             i += 1
             continue
-        
+
         # ── 이미지 ────────────────────────────────────────────────
         img_match = re.match(r"^!\[([^\]]*)\]\(([^)]+)\)", line)
         if img_match:
@@ -221,20 +220,36 @@ def convert(markdown: str, korean_optimize: bool = True) -> list[dict]:
             blocks.append(build_image_block(url, caption))
             i += 1
             continue
-        
+
         # ── 빈 줄 ─────────────────────────────────────────────────
         if line.strip() == "":
             i += 1
             continue
-        
-        # ── 일반 문단 ─────────────────────────────────────────────
-        blocks.append(_paragraph(line))
+
+        # ── 일반 문단 (연속 줄 병합) ──────────────────────────────
+        para_lines = [line]
         i += 1
-    
+        while i < len(lines):
+            next_line = lines[i]
+            if (
+                not next_line.strip()
+                or next_line.startswith("#")
+                or next_line.startswith(">")
+                or next_line.startswith("```")
+                or next_line.startswith("|")
+                or re.match(r"^\s*[-*+] ", next_line)
+                or re.match(r"^\s*\d+\. ", next_line)
+                or re.match(r"^(-{3,}|\*{3,}|_{3,})$", next_line.strip())
+            ):
+                break
+            para_lines.append(next_line)
+            i += 1
+        blocks.append(_paragraph(" ".join(para_lines)))
+
     return blocks
 
 
-def convert_file(path: str) -> list[dict]:
+def convert_file(path: str, korean_optimize: bool = True) -> list[dict]:
     """마크다운 파일 → Notion 블록 리스트"""
     with open(path, encoding="utf-8") as f:
-        return convert(f.read())
+        return convert(f.read(), korean_optimize=korean_optimize)

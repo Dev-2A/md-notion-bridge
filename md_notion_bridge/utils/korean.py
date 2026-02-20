@@ -90,8 +90,13 @@ def normalize_punctuation(text: str) -> str:
     for src, dst in replacements.items():
         text = text.replace(src, dst)
     
-    # 연속 공백 정리 (줄바꿈 제외, 단 전각→반각 변환으로 생긴 공백 누락 보정)
-    text = re.sub(r"[^\S\n]{2,}", " ", text)  # 2칸 이상 연속 공백만 정리
+    # 연속 공백 정리 (줄바꿈 제외, 줄 시작 들여쓰기는 보존)
+    def _clean_line(line: str) -> str:
+        stripped = line.lstrip(" ")
+        indent = line[: len(line) - len(stripped)]
+        return indent + re.sub(r" {2,}", " ", stripped)
+
+    text = "\n".join(_clean_line(l) for l in text.splitlines())
     return text
 
 

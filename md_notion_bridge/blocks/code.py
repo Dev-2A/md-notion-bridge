@@ -22,10 +22,13 @@ def build_code_block(code: str, language: str = "") -> dict:
     if lang not in SUPPORTED_LANGUAGES:
         lang = "plain text"
     
+    # 빈 코드블록 안전 처리
+    content = code if code.strip() else " "
+    
     return {
         "type": "code",
         "code": {
-            "rich_text": [{"type": "text", "text": {"content": code}}],
+            "rich_text": [{"type": "text", "text": {"content": content}}],
             "language": lang,
         },
     }

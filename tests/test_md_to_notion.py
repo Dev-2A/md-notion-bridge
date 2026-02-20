@@ -134,3 +134,33 @@ class TestConvert:
         assert "paragraph" in types
         assert "bulleted_list_item" in types
         assert "divider" in types
+    
+    def test_heading4_clamped_to_h3(self):
+        """H4 이상은 H3으로 변환"""
+        blocks = convert("#### H4 제목")
+        assert blocks[0]["type"] == "heading_3"
+
+    def test_heading6_clamped_to_h3(self):
+        blocks = convert("###### H6 제목")
+        assert blocks[0]["type"] == "heading_3"
+
+    def test_multiline_paragraph_merged(self):
+        """연속 줄은 하나의 문단으로 합쳐짐"""
+        md = "첫 번째 줄\n두 번째 줄\n세 번째 줄"
+        blocks = convert(md)
+        assert len(blocks) == 1
+        assert blocks[0]["type"] == "paragraph"
+
+    def test_empty_code_block(self):
+        """빈 코드블록 안전 처리"""
+        blocks = convert("```\n```")
+        assert blocks[0]["type"] == "code"
+
+    def test_nested_bulleted_list(self):
+        """중첩 순서 없는 목록"""
+        md = "- 부모\n  - 자식"
+        blocks = convert(md)
+        assert blocks[0]["type"] == "bulleted_list_item"
+        children = blocks[0]["bulleted_list_item"].get("children", [])
+        assert len(children) == 1
+        assert children[0]["type"] == "bulleted_list_item"

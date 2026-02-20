@@ -7,7 +7,8 @@ def build_table_blocks(rows: list[list[str]], has_header: bool = True) -> dict:
     for i, row in enumerate(rows):
         cells = []
         for cell in row:
-            cells.append([{"type": "text", "text": {"content": cell.strip()}}])
+            from ..md_to_notion import parse_inline
+            cells.append(parse_inline(cell.strip()))
         table_rows.append({
             "type": "table_row",
             "table_row": {"cells": cells},

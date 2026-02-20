@@ -167,9 +167,20 @@ def _convert_blocks(blocks: list[dict], depth: int = 0) -> str:
         if needs_blank:
             lines.append("")
         
-        lines.append(converted)
+        # 구분선은 앞뒤 빈 줄 강제
+        if block_type == "divider":
+            if lines and lines[-1] != "":
+                lines.append("")
+            lines.append(converted)
+            lines.append("")
+        else:
+            lines.append(converted)
+        
         prev_type = block_type
     
+    # 맨 끝 빈 줄 제거
+    while lines and lines[-1] == "":
+        lines.pop()
     return "\n".join(lines)
 
 
