@@ -1,5 +1,10 @@
 # 🔄️ md-notion-bridge
 
+![CI](https://github.com/Dev-2A/md-notion-bridge/actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-0.2.0-orange)
+
 > 마크다운 ↔ Notion 양방향 변환기
 
 마크다운 파일을 Notion 페이지로 업로드하거나, Notion 페이지를 마크다운 파일로 추출하는 Python CLI 도구입니다.  

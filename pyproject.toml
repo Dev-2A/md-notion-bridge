@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "md-notion-bridge"
-version = "0.1.0"
+version = "0.2.0"
 description = "마크다운 ↔ Notion 양방향 변환기"
 readme = "README.md"
 requires-python = ">=3.10"
