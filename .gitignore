@@ -32,3 +32,6 @@ test_output/
 .coverage
 htmlcov/
 coverage.xml
+
+# CI
+coverage.xml
