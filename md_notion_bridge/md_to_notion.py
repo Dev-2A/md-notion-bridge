@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 from .blocks import build_code_block, build_image_block, build_table_blocks
-from .utils.korean import normalize
+from .utils.korean import normalize, normalize_markdown_korean, rich_text_with_limit
 
 
 # ------------------------------------------------------------------ #
@@ -52,7 +52,14 @@ def parse_inline(text: str) -> list[dict]:
 
 
 def _plain(text: str) -> dict:
-    return {"type": "text", "text": {"content": normalize(text)}}
+    # 2000자 초과 시 자동 분할 (첫 번째 청크만 반환, 나머지는 parse_inline에서 처리)
+    chunks = rich_text_with_limit(text)
+    return chunks[0] if chunks else {"type": "text", "text": {"content": ""}}
+
+
+def _plain_all(text: str) -> list[dict]:
+    """2000자 초과 텍스트를 분할한 rich_text 리스트 전체 반환"""
+    return rich_text_with_limit(text)
 
 
 def _annotated(text: str, **kwargs) -> dict:
@@ -132,8 +139,10 @@ def _parse_table_row(line: str) -> list[str]:
 # 메인 변환 함수
 # ------------------------------------------------------------------ #
 
-def convert(markdown: str) -> list[dict]:
+def convert(markdown: str, korean_optimize: bool = True) -> list[dict]:
     """마크다운 문자열 → Notion 블록 리스트"""
+    if korean_optimize:
+        markdown = normalize_markdown_korean(markdown)
     blocks: list[dict] = []
     lines = markdown.splitlines()
     i = 0
