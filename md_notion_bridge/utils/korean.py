@@ -90,8 +90,8 @@ def normalize_punctuation(text: str) -> str:
     for src, dst in replacements.items():
         text = text.replace(src, dst)
     
-    # 연속 공백 정리 (줄바꿈 제외)
-    text = re.sub(r"[^\S\n]+", " ", text)
+    # 연속 공백 정리 (줄바꿈 제외, 단 전각→반각 변환으로 생긴 공백 누락 보정)
+    text = re.sub(r"[^\S\n]{2,}", " ", text)  # 2칸 이상 연속 공백만 정리
     return text
 
 

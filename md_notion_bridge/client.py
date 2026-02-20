@@ -14,7 +14,7 @@ class NotionClient:
         key = api_key or config.api_key
         if not key:
             raise ValueError("NOTION_API_KEY가 없습니다.")
-        self._client = Client(auth=key)
+        self._client = Client(auth=key, timeout_ms=60_000)
     
     # ------------------------------------------------------------------ #
     # 페이지 조회
@@ -72,14 +72,17 @@ class NotionClient:
                 }
             },
         }
-        if children:
-            payload["children"] = children[:100]    # 최초 100블록만 가능
+        page = self._client.pages.create(**payload)
         
-        return self._client.pages.create(**payload)
+        # 블록은 생성 후 청크 단위로 별도 추가
+        if children:
+            self.append_blocks(page["id"], children)
+        
+        return page
     
     def append_blocks(self, block_id: str, children: list[dict]) -> None:
         """블록을 청크 단위로 나눠서 추가"""
-        for i in range(0, len(children, config.chunk_size)):
+        for i in range(0, len(children), config.chunk_size):
             chunk = children[i : i + config.chunk_size]
             self._client.blocks.children.append(
                 block_id=block_id, children=chunk
