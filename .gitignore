@@ -29,3 +29,6 @@ Thumbs.db
 # 테스트 산출물
 test_output/
 *.md.bak
+.coverage
+htmlcov/
+coverage.xml
